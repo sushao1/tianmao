@@ -31,9 +31,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     headers,
     body: method === "GET" || method === "HEAD" ? undefined : JSON.stringify(req.body ?? {}),
   });
-  const response = await worker.fetch(request, {}, {});
+  // Provide the Cloudflare execution context expected by the SvelteKit adapter.
+  const context = {
+    waitUntil(promise: Promise<unknown>) {
+      void Promise.resolve(promise).catch(() => undefined);
+    },
+  };
+  const response = await worker.fetch(request, {}, context);
 
   response.headers.forEach((value: string, name: string) => res.setHeader(name, value));
   res.status(response.status).send(Buffer.from(await response.arrayBuffer()));
 }
-
