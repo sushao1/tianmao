@@ -36,3 +36,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   response.headers.forEach((value: string, name: string) => res.setHeader(name, value));
   res.status(response.status).send(Buffer.from(await response.arrayBuffer()));
 }
+
