@@ -238,8 +238,8 @@
       <p class="note">转换在浏览器本地完成。flac 会继续转成 mp3，大文件需要多等一会。</p>
     </main>
 
-    <script src="./crypto-js.js"></script>
-    <script src="./lame.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <script>
       const coreKey = CryptoJS.enc.Hex.parse("687A4852416D736F356B496E62617857");
       const metaKey = CryptoJS.enc.Hex.parse("2331346C6A6B5F215C5D2630553C2728");
@@ -289,13 +289,13 @@
 
       const decodeMeta = (bytes, fallbackName) => {
         const xored = bytes.map((byte) => byte ^ 0x63);
-        const text = new TextDecoder().decode(xored).replace(/^163 key\\(Don't modify\\):/, "");
+        const text = new TextDecoder().decode(xored).replace(/^163 key\(Don't modify\):/, "");
         try {
           const encrypted = Uint8Array.from(atob(text), (char) => char.charCodeAt(0)).slice(22);
           const json = new TextDecoder().decode(decryptEcb(encrypted, metaKey)).slice(6);
           return JSON.parse(json);
         } catch {
-          return { musicName: fallbackName.replace(/\\.ncm$/i, ""), format: "mp3" };
+          return { musicName: fallbackName.replace(/\.ncm$/i, ""), format: "mp3" };
         }
       };
 
@@ -373,7 +373,7 @@
           audio[i] ^= keyBox[(keyBox[j] + keyBox[(keyBox[j] + j) & 255]) & 255];
         }
 
-        const title = (meta.musicName || file.name.replace(/\\.ncm$/i, "")).replace(/[\\\\/:*?"<>|]/g, "_");
+        const title = (meta.musicName || file.name.replace(/\.ncm$/i, "")).replace(/[\\/:*?"<>|]/g, "_");
         return { name: `${title}.mp3`, blob: await toMp3(audio) };
       };
 
@@ -401,7 +401,7 @@
 
       const addFiles = (selected) => {
         for (const file of selected) {
-          if (/\\.ncm$/i.test(file.name)) files.push(file);
+          if (/\.ncm$/i.test(file.name)) files.push(file);
         }
         render();
       };
