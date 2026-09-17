@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import worker from "../dist/server/index.js";
 
 type VercelRequest = {
@@ -19,6 +21,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const forwardedHost = req.headers["x-forwarded-host"] || req.headers.host || "localhost";
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost;
   const requestUrl = new URL(req.url || "/", `${protocol}://${host}`);
+
+  if (requestUrl.pathname === "/ncm-converter.html") {
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.status(200).send(readFileSync(join(process.cwd(), "nav", "ncm-converter.html"), "utf8"));
+    return;
+  }
+
   const headers = new Headers();
 
   for (const [name, value] of Object.entries(req.headers)) {
