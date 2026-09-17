@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="批量把网易云音乐 ncm 文件转换为 mp3 或 flac。" />
+    <title>NCM 转 MP3</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23080b12'/%3E%3Cpath d='M25 46V16l23-5v28' stroke='%2356d68a' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='20' cy='46' r='7' fill='%2356d68a'/%3E%3Ccircle cx='44' cy='39' r='7' fill='%2356d68a'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #080b12;
+        --panel: rgba(18, 24, 36, 0.82);
+        --panel-strong: rgba(24, 31, 46, 0.96);
+        --line: rgba(255, 255, 255, 0.12);
+        --text: #f7f8fb;
+        --muted: #9ca6b8;
+        --green: #56d68a;
+        --blue: #7394ff;
+        --danger: #ff7a7a;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 18% 6%, rgba(86, 214, 138, 0.16), transparent 34rem),
+          radial-gradient(circle at 86% 80%, rgba(115, 148, 255, 0.12), transparent 30rem),
+          var(--bg);
+      }
+
+      main {
+        width: min(960px, calc(100% - 36px));
+        margin: 0 auto;
+        padding: 34px 0 54px;
+      }
+
+      a { color: inherit; }
+
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.95rem;
+        font-weight: 650;
+      }
+
+      h1 {
+        margin: 30px 0 10px;
+        font-size: clamp(2.3rem, 7vw, 4.8rem);
+        line-height: 1;
+        letter-spacing: -0.05em;
+      }
+
+      .lead {
+        max-width: 680px;
+        margin: 0 0 28px;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.7;
+      }
+
+      .drop {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 280px;
+        padding: 28px;
+        border: 1px dashed rgba(255, 255, 255, 0.25);
+        border-radius: 26px;
+        background: var(--panel);
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.25);
+        text-align: center;
+      }
+
+      .drop.dragover {
+        border-color: rgba(86, 214, 138, 0.8);
+        background: rgba(22, 38, 34, 0.92);
+      }
+
+      .drop input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .mark {
+        width: 70px;
+        height: 70px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 18px;
+        border-radius: 22px;
+        color: var(--green);
+        background: rgba(86, 214, 138, 0.1);
+        border: 1px solid rgba(86, 214, 138, 0.28);
+      }
+
+      .mark svg {
+        width: 36px;
+        height: 36px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .drop strong {
+        display: block;
+        font-size: 1.35rem;
+        margin-bottom: 8px;
+      }
+
+      .drop span {
+        color: var(--muted);
+        font-size: 0.98rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 20px 0;
+      }
+
+      button {
+        min-height: 46px;
+        padding: 0 18px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: #06100b;
+        background: var(--green);
+        font: inherit;
+        font-weight: 760;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--line);
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .list {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: center;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel-strong);
+      }
+
+      .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.98rem;
+      }
+
+      .meta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .status {
+        color: var(--muted);
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      .ok { color: var(--green); }
+      .bad { color: var(--danger); }
+
+      .note {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 640px) {
+        main { width: min(100% - 26px, 560px); }
+        .drop { min-height: 238px; padding: 22px; }
+        .item { grid-template-columns: 1fr; }
+        .status { white-space: normal; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="./index.html">← 返回导航</a>
+      <h1>NCM 转 MP3</h1>
+      <p class="lead">批量选择网易云音乐的 .ncm 文件，浏览器本地转换并自动下载。原文件不会上传。</p>
+
+      <label class="drop" id="drop">
+        <input id="picker" type="file" accept=".ncm" multiple />
+        <div>
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+          </div>
+          <strong>拖入或选择 ncm 文件</strong>
+          <span>可一次选择多个文件</span>
+        </div>
+      </label>
+
+      <div class="actions">
+        <button id="convert" disabled>开始转换</button>
+        <button class="secondary" id="clear" disabled>清空列表</button>
+      </div>
+
+      <section class="list" id="list" aria-live="polite"></section>
+      <p class="note">转换在浏览器本地完成。flac 会继续转成 mp3，大文件需要多等一会。</p>
+    </main>
+
+    <script src="./crypto-js.js"></script>
+    <script src="./lame.min.js"></script>
+    <script>
+      const coreKey = CryptoJS.enc.Hex.parse("687A4852416D736F356B496E62617857");
+      const metaKey = CryptoJS.enc.Hex.parse("2331346C6A6B5F215C5D2630553C2728");
+      const files = [];
+      const picker = document.querySelector("#picker");
+      const drop = document.querySelector("#drop");
+      const list = document.querySelector("#list");
+      const convert = document.querySelector("#convert");
+      const clear = document.querySelector("#clear");
+
+      const readU32 = (bytes, offset) =>
+        bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24);
+
+      const bytesToWordArray = (bytes) => {
+        const words = [];
+        for (let i = 0; i < bytes.length; i += 1) words[i >>> 2] |= bytes[i] << (24 - (i % 4) * 8);
+        return CryptoJS.lib.WordArray.create(words, bytes.length);
+      };
+
+      const wordArrayToBytes = (wordArray) => {
+        const bytes = new Uint8Array(wordArray.sigBytes);
+        for (let i = 0; i < bytes.length; i += 1) bytes[i] = (wordArray.words[i >>> 2] >>> (24 - (i % 4) * 8)) & 255;
+        return bytes;
+      };
+
+      const decryptEcb = (bytes, key) =>
+        wordArrayToBytes(CryptoJS.AES.decrypt({ ciphertext: bytesToWordArray(bytes) }, key, {
+          mode: CryptoJS.mode.ECB,
+          padding: CryptoJS.pad.Pkcs7,
+        }));
+
+      const makeKeyBox = (key) => {
+        const box = new Uint8Array(256);
+        for (let i = 0; i < 256; i += 1) box[i] = i;
+        let last = 0;
+        let keyOffset = 0;
+        for (let i = 0; i < 256; i += 1) {
+          const swap = box[i];
+          const c = (swap + last + key[keyOffset]) & 255;
+          keyOffset = (keyOffset + 1) % key.length;
+          box[i] = box[c];
+          box[c] = swap;
+          last = c;
+        }
+        return box;
+      };
+
+      const decodeMeta = (bytes, fallbackName) => {
+        const xored = bytes.map((byte) => byte ^ 0x63);
+        const text = new TextDecoder().decode(xored).replace(/^163 key\\(Don't modify\\):/, "");
+        try {
+          const encrypted = Uint8Array.from(atob(text), (char) => char.charCodeAt(0)).slice(22);
+          const json = new TextDecoder().decode(decryptEcb(encrypted, metaKey)).slice(6);
+          return JSON.parse(json);
+        } catch {
+          return { musicName: fallbackName.replace(/\\.ncm$/i, ""), format: "mp3" };
+        }
+      };
+
+      const floatToInt16 = (samples) => {
+        const output = new Int16Array(samples.length);
+        for (let i = 0; i < samples.length; i += 1) {
+          const sample = Math.max(-1, Math.min(1, samples[i]));
+          output[i] = sample < 0 ? sample * 32768 : sample * 32767;
+        }
+        return output;
+      };
+
+      const encodeMp3 = (audioBuffer) => {
+        const channels = Math.min(2, audioBuffer.numberOfChannels);
+        const encoder = new lamejs.Mp3Encoder(channels, audioBuffer.sampleRate, 192);
+        const left = floatToInt16(audioBuffer.getChannelData(0));
+        const right = channels > 1 ? floatToInt16(audioBuffer.getChannelData(1)) : null;
+        const chunks = [];
+        const blockSize = 1152;
+
+        for (let i = 0; i < left.length; i += blockSize) {
+          const mp3 = right
+            ? encoder.encodeBuffer(left.subarray(i, i + blockSize), right.subarray(i, i + blockSize))
+            : encoder.encodeBuffer(left.subarray(i, i + blockSize));
+          if (mp3.length) chunks.push(mp3);
+        }
+
+        const tail = encoder.flush();
+        if (tail.length) chunks.push(tail);
+        return new Blob(chunks, { type: "audio/mpeg" });
+      };
+
+      const toMp3 = async (audio) => {
+        const head = new TextDecoder().decode(audio.slice(0, 3));
+        if (head === "ID3" || (audio[0] === 255 && (audio[1] & 224) === 224)) {
+          return new Blob([audio], { type: "audio/mpeg" });
+        }
+
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+          const buffer = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength);
+          return encodeMp3(await context.decodeAudioData(buffer));
+        } finally {
+          context.close();
+        }
+      };
+
+      const convertNcm = async (file) => {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const magic = new TextDecoder().decode(bytes.slice(0, 8));
+        if (magic !== "CTENFDAM") throw new Error("不是有效的 ncm 文件");
+
+        let offset = 10;
+        const keyLen = readU32(bytes, offset);
+        offset += 4;
+        const encryptedKey = bytes.slice(offset, offset + keyLen).map((byte) => byte ^ 0x64);
+        offset += keyLen;
+
+        const key = decryptEcb(encryptedKey, coreKey).slice(17);
+        const keyBox = makeKeyBox(key);
+
+        const metaLen = readU32(bytes, offset);
+        offset += 4;
+        const meta = decodeMeta(bytes.slice(offset, offset + metaLen), file.name);
+        offset += metaLen + 5;
+
+        const imageSpace = readU32(bytes, offset);
+        offset += 4;
+        const imageLen = readU32(bytes, offset);
+        offset += 4 + imageLen + (imageSpace - imageLen);
+
+        const audio = bytes.slice(offset);
+        for (let i = 0; i < audio.length; i += 1) {
+          const j = (i + 1) & 255;
+          audio[i] ^= keyBox[(keyBox[j] + keyBox[(keyBox[j] + j) & 255]) & 255];
+        }
+
+        const title = (meta.musicName || file.name.replace(/\\.ncm$/i, "")).replace(/[\\\\/:*?"<>|]/g, "_");
+        return { name: `${title}.mp3`, blob: await toMp3(audio) };
+      };
+
+      const download = ({ name, blob }) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+
+      const render = () => {
+        list.innerHTML = files.map((file, index) => `
+          <article class="item">
+            <div>
+              <div class="name">${file.name}</div>
+              <div class="meta">${(file.size / 1024 / 1024).toFixed(1)} MB</div>
+            </div>
+            <div class="status" id="status-${index}">等待转换</div>
+          </article>
+        `).join("");
+        convert.disabled = files.length === 0;
+        clear.disabled = files.length === 0;
+      };
+
+      const addFiles = (selected) => {
+        for (const file of selected) {
+          if (/\\.ncm$/i.test(file.name)) files.push(file);
+        }
+        render();
+      };
+
+      picker.addEventListener("change", () => addFiles(picker.files));
+      clear.addEventListener("click", () => {
+        files.length = 0;
+        picker.value = "";
+        render();
+      });
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        drop.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          drop.classList.add("dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach((eventName) => {
+        drop.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          drop.classList.remove("dragover");
+        });
+      });
+      drop.addEventListener("drop", (event) => addFiles(event.dataTransfer.files));
+
+      convert.addEventListener("click", async () => {
+        convert.disabled = true;
+        for (const [index, file] of files.entries()) {
+          const status = document.querySelector(`#status-${index}`);
+          status.textContent = "转换中";
+          try {
+            const output = await convertNcm(file);
+            download(output);
+            status.textContent = `已下载 ${output.name}`;
+            status.className = "status ok";
+          } catch (error) {
+            status.textContent = error.message || "转换失败";
+            status.className = "status bad";
+          }
+        }
+        convert.disabled = false;
+      });
+    </script>
+  </body>
+</html>
