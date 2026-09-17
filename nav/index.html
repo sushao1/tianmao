@@ -25,6 +25,7 @@
         --blue: #7394ff;
         --cyan: #44d8ce;
         --orange: #ff8a5b;
+        --green: #56d68a;
       }
 
       * { box-sizing: border-box; }
@@ -151,6 +152,7 @@
 
       .review { --glow: var(--orange); }
       .compress { --glow: var(--blue); }
+      .audio { --glow: var(--green); }
 
       .topline {
         display: flex;
@@ -181,6 +183,7 @@
 
       .review .icon { color: #ffa178; }
       .compress .icon { color: #90a9ff; }
+      .audio .icon { color: #7df0a7; }
 
       .index {
         color: #778196;
@@ -283,10 +286,22 @@
           <p>批量压缩图片、调整尺寸，并快速打包下载。</p>
           <div class="open">打开网页 <span aria-hidden="true">→</span></div>
         </a>
+
+        <a class="tool audio" href="./ncm-converter.html">
+          <div class="topline">
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+            </div>
+            <span class="index">03</span>
+          </div>
+          <h2>NCM 转 MP3</h2>
+          <p>批量选择网易云 ncm 文件，在浏览器里转换并下载。</p>
+          <div class="open">打开网页 <span aria-hidden="true">→</span></div>
+        </a>
       </section>
 
       <footer>
-        <span>2 个网页工具</span>
+        <span>3 个网页工具</span>
         <span>桌面与手机均可使用</span>
       </footer>
     </main>
