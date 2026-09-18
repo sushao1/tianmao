@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="在浏览器本地解析淘宝逛逛分享链接并打开原视频。" />
+  <title>淘宝视频解析</title>
+  <style>
+    :root{color-scheme:dark;--bg:#080b12;--panel:rgba(18,24,36,.86);--line:rgba(255,255,255,.12);--text:#f7f8fb;--muted:#9ca6b8;--orange:#ff764a;--green:#56d68a}
+    *{box-sizing:border-box}body{min-height:100vh;margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--text);background:radial-gradient(circle at 15% 5%,rgba(255,118,74,.17),transparent 34rem),radial-gradient(circle at 85% 88%,rgba(115,148,255,.12),transparent 30rem),var(--bg)}
+    main{width:min(900px,calc(100% - 32px));margin:auto;padding:34px 0 54px}.back{color:var(--muted);text-decoration:none;font-weight:650}h1{margin:30px 0 10px;font-size:clamp(2.3rem,7vw,4.7rem);line-height:1;letter-spacing:-.05em}.lead,.note{color:var(--muted);line-height:1.7}
+    .panel{margin-top:28px;padding:clamp(20px,4vw,32px);border:1px solid var(--line);border-radius:26px;background:var(--panel);box-shadow:0 22px 70px rgba(0,0,0,.26)}
+    textarea{width:100%;min-height:160px;padding:17px;border:1px solid var(--line);border-radius:18px;resize:vertical;color:var(--text);background:rgba(0,0,0,.28);font:inherit;line-height:1.6;outline:none}textarea:focus{border-color:rgba(255,118,74,.75);box-shadow:0 0 0 4px rgba(255,118,74,.1)}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}button,.download{min-height:46px;display:inline-flex;align-items:center;justify-content:center;padding:0 19px;border:0;border-radius:999px;color:#170703;background:var(--orange);font:inherit;font-weight:760;cursor:pointer;text-decoration:none}.secondary{color:var(--text);background:rgba(255,255,255,.08);border:1px solid var(--line)}
+    .result{display:none;margin-top:24px}.result.show{display:block}.status{margin:0 0 14px;color:var(--green);font-weight:700}.error{color:#ff8585}video{width:100%;max-height:620px;border-radius:18px;background:#000}.url{margin-top:12px;padding:12px 14px;overflow-wrap:anywhere;border-radius:14px;color:var(--muted);background:rgba(0,0,0,.25);font-size:.85rem}
+    @media(max-width:600px){main{width:min(100% - 24px,560px)}.panel{border-radius:22px}.actions>*{flex:1}}
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="./index.html">← 返回导航</a>
+    <h1>淘宝视频解析</h1>
+    <p class="lead">粘贴淘宝逛逛分享文案、短链解析后的长链接或带有 contentId 的链接。解析只在浏览器本地完成。</p>
+    <section class="panel">
+      <label for="source">淘宝分享内容</label>
+      <textarea id="source" placeholder="粘贴完整分享文案或链接"></textarea>
+      <div class="actions">
+        <button id="parse">解析视频</button>
+        <button class="secondary" id="clear">清空</button>
+      </div>
+      <div class="result" id="result">
+        <p class="status" id="status"></p>
+        <video id="preview" controls playsinline></video>
+        <div class="actions">
+          <a class="download" id="download" target="_blank" rel="noopener noreferrer">打开原视频</a>
+          <button class="secondary" id="copy">复制视频地址</button>
+        </div>
+        <div class="url" id="url"></div>
+      </div>
+      <p class="note">支持淘宝逛逛链接中包含 <code>videoUrl</code> 或 <code>contentId</code> 的公开内容。若淘宝调整 CDN 规则，需要再更新解析方式。</p>
+    </section>
+  </main>
+  <script>
+    const source = document.querySelector("#source");
+    const result = document.querySelector("#result");
+    const status = document.querySelector("#status");
+    const preview = document.querySelector("#preview");
+    const download = document.querySelector("#download");
+    const urlBox = document.querySelector("#url");
+
+    const decode = (text) => {
+      for (let i = 0; i < 3; i += 1) {
+        try { const next = decodeURIComponent(text); if (next === text) break; text = next; } catch { break; }
+      }
+      return text;
+    };
+
+    const parseSource = (input) => {
+      const text = decode(input.trim());
+      const direct = text.match(/https?:\/\/[^\s"'<>]+\.mp4(?:\?[^\s"'<>]*)?/i);
+      if (direct) return { url: direct[0].replace(/&amp;/g, "&"), id: null };
+      const id = text.match(/["']?contentId["']?\s*[:=]\s*["']?(\d{10,})/i)?.[1]
+        || text.match(/[?&](?:contentId|id)=(\d{10,})/i)?.[1];
+      if (!id) throw new Error("没有找到淘宝逛逛 contentId");
+      // ponytail: this covers current public Guangguang CDN IDs; add an API fallback only if Taobao changes the redirect rule.
+      return { id, url: `https://cloud.video.taobao.com/play/u/null/p/1/e/6/t/1/${id}.mp4` };
+    };
+
+    const showError = (message) => {
+      result.classList.add("show");
+      status.className = "status error";
+      status.textContent = message;
+      preview.removeAttribute("src");
+      preview.style.display = "none";
+      download.style.display = "none";
+      document.querySelector("#copy").style.display = "none";
+      urlBox.textContent = "";
+    };
+
+    document.querySelector("#parse").addEventListener("click", () => {
+      try {
+        const parsed = parseSource(source.value);
+        result.classList.add("show");
+        status.className = "status";
+        status.textContent = parsed.id ? `解析成功 · 内容 ID ${parsed.id}` : "解析成功 · 已提取原视频地址";
+        preview.style.display = "block";
+        preview.src = parsed.url;
+        download.style.display = "inline-flex";
+        download.href = parsed.url;
+        document.querySelector("#copy").style.display = "inline-flex";
+        urlBox.textContent = parsed.url;
+      } catch (error) { showError(error.message); }
+    });
+
+    document.querySelector("#clear").addEventListener("click", () => {
+      source.value = "";
+      result.classList.remove("show");
+      preview.removeAttribute("src");
+      source.focus();
+    });
+
+    document.querySelector("#copy").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(urlBox.textContent);
+      status.textContent = "视频地址已复制";
+    });
+
+    console.assert(parseSource('extParams=%7B%22contentId%22%3A%22560747209489%22%7D').id === "560747209489");
+  </script>
+</body>
+</html>
