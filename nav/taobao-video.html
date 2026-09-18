@@ -20,7 +20,7 @@
   <main>
     <a class="back" href="./index.html">← 返回导航</a>
     <h1>淘宝视频批量解析</h1>
-    <p class="lead">每行粘贴一个淘宝分享链接，也可以直接粘贴多段分享文案。点击开始解析后会自动还原短链并批量解析原视频。</p>
+    <p class="lead">每行粘贴一个淘宝分享链接，也可以直接粘贴多段分享文案。点击开始解析后会自动还原短链、解析原视频并按顺序下载。</p>
     <section class="panel">
       <label for="source">淘宝分享内容</label>
       <textarea id="source" placeholder="每行一个链接或直接粘贴多段淘宝分享文案"></textarea>
@@ -29,7 +29,7 @@
         <button class="secondary" id="clear">清空</button>
       </div>
       <section class="results" id="results" aria-live="polite"></section>
-      <p class="note">一次最多处理 20 条。短链只允许访问淘宝官方 <code>*.tb.cn</code>，解析结果不会保存。</p>
+      <p class="note">一次最多处理 20 条，视频会按顺序下载。浏览器首次使用时可能询问是否允许多个文件下载。短链只允许访问淘宝官方 <code>*.tb.cn</code>，解析结果不会保存。</p>
     </section>
   </main>
   <script>
@@ -92,6 +92,17 @@
       }));
     };
 
+    const downloadVideo = async (item, index) => {
+      const response = await fetch(item.video);
+      if (!response.ok) throw new Error("视频下载失败");
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `淘宝视频_${item.id || index + 1}.mp4`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    };
+
     const run = async () => {
       let inputs;
       try { inputs = getInputs(); } catch (error) { render([{ source: "-", error: error.message }]); return; }
@@ -102,11 +113,24 @@
           item.resolved = await restoreUrl(input);
           const video = parseVideo(item.resolved);
           item.video = video.url;
-          item.status = video.id ? `解析成功 · ${video.id}` : "已提取视频地址";
+          item.id = video.id;
+          item.status = "等待下载";
         } catch (error) { item.error = error.message; }
         return item;
       }));
       render(items);
+      for (const [index, item] of items.entries()) {
+        if (!item.video) continue;
+        item.status = "正在下载";
+        render(items);
+        try {
+          await downloadVideo(item, index);
+          item.status = "已下载";
+        } catch (error) {
+          item.error = error.message;
+        }
+        render(items);
+      }
       buttons.forEach((button) => button.disabled = false);
     };
 
