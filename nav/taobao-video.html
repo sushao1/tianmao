@@ -20,13 +20,12 @@
   <main>
     <a class="back" href="./index.html">← 返回导航</a>
     <h1>淘宝视频批量解析</h1>
-    <p class="lead">每行粘贴一个淘宝分享链接，也可以直接粘贴多段分享文案。支持短链还原与淘宝逛逛视频批量解析。</p>
+    <p class="lead">每行粘贴一个淘宝分享链接，也可以直接粘贴多段分享文案。点击开始解析后会自动还原短链并批量解析原视频。</p>
     <section class="panel">
       <label for="source">淘宝分享内容</label>
       <textarea id="source" placeholder="每行一个链接或直接粘贴多段淘宝分享文案"></textarea>
       <div class="actions">
-        <button id="restore">还原短链</button>
-        <button id="parse">批量解析视频</button>
+        <button id="parse">开始解析</button>
         <button class="secondary" id="clear">清空</button>
       </div>
       <section class="results" id="results" aria-live="polite"></section>
@@ -93,7 +92,7 @@
       }));
     };
 
-    const run = async (withVideo) => {
+    const run = async () => {
       let inputs;
       try { inputs = getInputs(); } catch (error) { render([{ source: "-", error: error.message }]); return; }
       buttons.forEach((button) => button.disabled = true);
@@ -101,11 +100,9 @@
         const item = { source: input };
         try {
           item.resolved = await restoreUrl(input);
-          if (withVideo) {
-            const video = parseVideo(item.resolved);
-            item.video = video.url;
-            item.status = video.id ? `解析成功 · ${video.id}` : "已提取视频地址";
-          } else item.status = isShort(input) ? "短链还原成功" : "已经是长链接";
+          const video = parseVideo(item.resolved);
+          item.video = video.url;
+          item.status = video.id ? `解析成功 · ${video.id}` : "已提取视频地址";
         } catch (error) { item.error = error.message; }
         return item;
       }));
@@ -113,8 +110,7 @@
       buttons.forEach((button) => button.disabled = false);
     };
 
-    document.querySelector("#restore").addEventListener("click", () => run(false));
-    document.querySelector("#parse").addEventListener("click", () => run(true));
+    document.querySelector("#parse").addEventListener("click", run);
     document.querySelector("#clear").addEventListener("click", () => { source.value = ""; results.innerHTML = ""; source.focus(); });
 
     console.assert(parseVideo('extParams=%7B%22contentId%22%3A%22560747209489%22%7D').id === "560747209489");
